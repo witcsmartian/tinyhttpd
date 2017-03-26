@@ -48,6 +48,11 @@ void unimplemented(int);
  * return.  Process the request appropriately.
  * Parameters: the socket connected to the client */
 /**********************************************************************/
+/*
+一个请求引起了返回服务器端口的accept()一次调用
+适当的处理请求
+参数：连接到客户端的socket套接字
+*/
 void accept_request(int client)
 {
  char buf[1024];
@@ -61,35 +66,35 @@ void accept_request(int client)
                     * program */
  char *query_string = NULL;
 
- numchars = get_line(client, buf, sizeof(buf));
+ numchars = get_line(client, buf, sizeof(buf));//从client 套接字中读取一行到buf所指内存中
  i = 0; j = 0;
- while (!ISspace(buf[j]) && (i < sizeof(method) - 1))
+ while (!ISspace(buf[j]) && (i < sizeof(method) - 1))//如果buf[j]为空格字符，则返回非0 否则 返回 0；
  {
-  method[i] = buf[j];
+  method[i] = buf[j];//字符数组buf剔除掉空格后 存储到method数组中 最多存储  sizeof(method)-1    个字符 
   i++; j++;
  }
  method[i] = '\0';
 
- if (strcasecmp(method, "GET") && strcasecmp(method, "POST"))
+ if (strcasecmp(method, "GET") && strcasecmp(method, "POST"))//既不是"GET"方法 也不是"POST"方法
  {
   unimplemented(client);
   return;
  }
 
- if (strcasecmp(method, "POST") == 0)
+ if (strcasecmp(method, "POST") == 0)  //post 方法 
   cgi = 1;
 
  i = 0;
  while (ISspace(buf[j]) && (j < sizeof(buf)))
-  j++;
+  j++;//在buf数组中找到第一个非空的 字符 buf[j]
  while (!ISspace(buf[j]) && (i < sizeof(url) - 1) && (j < sizeof(buf)))
  {
-  url[i] = buf[j];
+  url[i] = buf[j];//buf数组剔除掉空格字符后 存储到 url数组中 
   i++; j++;
  }
  url[i] = '\0';
 
- if (strcasecmp(method, "GET") == 0)
+ if (strcasecmp(method, "GET") == 0)  //get 方法
  {
   query_string = url;
   while ((*query_string != '?') && (*query_string != '\0'))
@@ -157,11 +162,32 @@ void bad_request(int client)
 void cat(int client, FILE *resource)
 {
  char buf[1024];
+ /*
+ 从文件结构体指针stream中读取数据，每次读取一行。读取的数据保存在buf指向的字符数组中，
+ 每次最多读取bufsize-1个字符（第bufsize个字符赋'\0'），如果文件中的该行，不足bufsize个字符
+ ，则读完该行就结束。如若该行（包括最后一个换行符）的字符数超过bufsize-1，则fgets只返回一个不完整的行，
+ 但是，缓冲区总是以NULL字符结尾，对fgets的下一次调用会继续读该行。函数成功将返回buf，失败或读到文件结尾返回NULL。
+ 因此我们不能直接通过fgets的返回值来判断函数是否是出错而终止的，应该借助feof函数或者ferror函数来判
+ 
+ 函数原型
+ 
+char *fgets(char *buf, int bufsize, FILE *stream);
+参数
+*buf: 字符型指针，指向用来存储所得数据的地址。
+bufsize: 整型数据，指明存储数据的大小。
+*stream: 文件结构体指针，将要读取的文件流。
 
- fgets(buf, sizeof(buf), resource);
+返回值
+
+成功，则返回第一个参数buf；
+在读字符时遇到end-of-file，则eof指示器被设置，如果还没读入任何字符就遇到这种情况，则buf保持原来的内容，返回NULL；
+如果发生读入错误，error指示器被设置，返回NULL，buf的值可能被改变。
+ */
+ fgets(buf, sizeof(buf), resource);//从文件结构体指针stream中读取数据，每次读取一行。读取的数据保存在buf指向的字符数组中，
  while (!feof(resource))
  {
-  send(client, buf, strlen(buf), 0);
+  send(client, buf, strlen(buf), 0);//从client所指向的套接字描述符中发送 strlen(buf)个字节的数据到 
+ //buf 所指向的内存中
   fgets(buf, sizeof(buf), resource);
  }
 }
@@ -174,7 +200,7 @@ void cannot_execute(int client)
 {
  char buf[1024];
 
- sprintf(buf, "HTTP/1.0 500 Internal Server Error\r\n");
+ sprintf(buf, "HTTP/1.0 500 Internal Server Error\r\n");//
  send(client, buf, strlen(buf), 0);
  sprintf(buf, "Content-type: text/html\r\n");
  send(client, buf, strlen(buf), 0);
@@ -192,7 +218,7 @@ void cannot_execute(int client)
 void error_die(const char *sc)
 {
  perror(sc);
- exit(1);
+ exit(1);//exit(0) 正常退出 其它非正常退出    
 }
 
 /**********************************************************************/
@@ -289,20 +315,26 @@ void execute_cgi(int client, const char *path,
  }
 }
 
-/**********************************************************************/
-/* Get a line from a socket, whether the line ends in a newline,
- * carriage return, or a CRLF combination.  Terminates the string read
- * with a null character.  If no newline indicator is found before the
- * end of the buffer, the string is terminated with a null.  If any of
- * the above three line terminators is read, the last character of the
- * string will be a linefeed and the string will be terminated with a
- * null character.
- * Parameters: the socket descriptor
+//**********************************************************************/
+/*
+       从套接字获取一行,无论该行以换行符，回车符，还是CRLF组合结尾。
+当读到一个空字符时终止读该字符串。如果在缓冲区结束之前没有找到换行符，
+则字符串将以null结尾。如果读取了上述终结符中的任何一个，则字符串的最
+后一个字符为换行符，并且字符串将以空字符终止。
+
+Parameters: the socket descriptor
  *             the buffer to save the data in
  *             the size of the buffer
  * Returns: the number of bytes stored (excluding null) */
-/**********************************************************************/
-int get_line(int sock, char *buf, int size)
+//**********************************************************************/
+
+int get_line(int sock, char *buf, int size)//参数
+ /*
+ sock:socket描述符
+ buf:存储数据的缓冲区
+ size:缓冲区的大小
+ 返回：存储的字节数
+ */
 {
  int i = 0;
  char c = '\0';
@@ -310,7 +342,7 @@ int get_line(int sock, char *buf, int size)
 
  while ((i < size - 1) && (c != '\n'))
  {
-  n = recv(sock, &c, 1, 0);
+  n = recv(sock, &c, 1, 0);//一次接收一个字节的数据
   /* DEBUG printf("%02X\n", c); */
   if (n > 0)
   {
@@ -325,7 +357,8 @@ int get_line(int sock, char *buf, int size)
    }
    buf[i] = c;
    i++;
-  }
+  }     
+    
   else
    c = '\n';
  }
