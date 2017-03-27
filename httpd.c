@@ -450,7 +450,14 @@ void serve_file(int client, const char *filename)
  * Parameters: pointer to variable containing the port to connect on
  * Returns: the socket */
 /**********************************************************************/
-int startup(u_short *port)
+/*
+功能：此函数开启在指定端口监听web连接的过程。如果端口为0，则动态分配端口并修改原始端口变量以反映实际端口。
+
+参数：指向包含要连接的端口的变量的指针
+
+返回：套接字
+*/
+int startup(u_short *port) //服务端初始化监听
 {
  int httpd = 0;
  struct sockaddr_in name;
@@ -486,6 +493,46 @@ void unimplemented(int client)
  char buf[1024];
 
  sprintf(buf, "HTTP/1.0 501 Method Not Implemented\r\n");
+ /*
+ ssize_t send(int sockfd, const void *buff, size_t nbytes, int flags);
+ 
+ 参数1：指定发送端套接字描述符
+ 参数2：存放要发送数据的缓冲区
+ 参数3：实际要发送数据的字节数
+ 参数4：一般置为 0
+ 
+ <1>send先比较发送数据的长度nbytes和套接字sockfd的发送缓冲区的长度，
+ 如果nbytes > 套接字sockfd的发送缓冲区的长度, 该函数返回SOCKET_ERROR;
+ 
+ <2>如果nbtyes <= 套接字sockfd的发送缓冲区的长度，
+ 那么send先检查协议是否正在发送sockfd的发送缓冲区中的数据，
+ 如果是就等待协议把数据发送完，如果协议还没有开始发送sockfd的发送缓冲区中的数据
+ 或者sockfd的发送缓冲区中没有数据，那么send就比较sockfd的发送缓冲区的剩余空间和nbytes
+ 
+ <3>如果 nbytes > 套接字sockfd的发送缓冲区剩余空间的长度，
+ send就等待协议把套接字sockfd的发送缓冲区中的数据发送完
+ 
+ <4>如果 nbytes < 套接字sockfd的发送缓冲区剩余空间大小，
+ send就仅仅把buf中的数据copy到剩余空间里
+ (注意并不是send把套接字sockfd的发送缓冲区中的数据传到连接的另一端的，
+ 而是协议传送的，send仅仅是把buf中的数据copy到套接字sockfd的发送缓冲区的剩余空间里)。
+ 
+ <5>如果send函数copy成功，就返回实际copy的字节数，如果send在copy数据时出现错误，
+ 那么send就返回SOCKET_ERROR; 
+ 如果在等待协议传送数据时网络断开，send函数也返回SOCKET_ERROR。
+ 
+ <6>
+  send函数把buff中的数据成功copy到sockfd的改善缓冲区的剩余空间后它就返回了，
+  但是此时这些数据并不一定马上被传到连接的另一端。
+  如果协议在后续的传送过程中出现网络错误的话，
+  那么下一个socket函数就会返回SOCKET_ERROR。
+  （每一个除send的socket函数在执行的最开始总要先等待套接字的发送缓冲区中的数据被协议传递完毕才能继续，
+  如果在等待时出现网络错误那么该socket函数就返回SOCKET_ERROR）
+  
+ <7>
+ 在unix系统下，如果send在等待协议传送数据时网络断开，
+ 调用send的进程会接收到一个SIGPIPE信号，进程对该信号的处理是进程终止。
+ */
  send(client, buf, strlen(buf), 0);
  sprintf(buf, SERVER_STRING);
  send(client, buf, strlen(buf), 0);
@@ -522,6 +569,16 @@ int main(void)
   client_sock = accept(server_sock,
                        (struct sockaddr *)&client_name,
                        &client_name_len);
+  /*
+  服务器调用accept()函数接收请求，建立连接完毕。
+  
+  参数1：服务器的socket描述字
+  参数2：指向struct sockaddr 的指针，用于返回客户端的地址
+  参数3：协议地址的长度
+  
+  返回：由内核自动生成的一个全新的描述字，代表与返回客户的TCP连接。
+  
+  */
   if (client_sock == -1)
    error_die("accept");
  /* accept_request(client_sock); */
