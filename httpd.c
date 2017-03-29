@@ -1,10 +1,5 @@
-/* J. David's webserver */
-/* This is a simple webserver.
- * Created November 1999 by J. David Blackstone.
- * CSE 4344 (Network concepts), Prof. Zeigler
- * University of Texas at Arlington
- */
-/* This program compiles for Sparc Solaris 2.6.
+
+/*
  * To compile for Linux:
  *  1) Comment out the #include <pthread.h> line.
  *  2) Comment out the line that defines the variable newthread.
@@ -108,9 +103,14 @@ void accept_request(int client)
  }
 
  sprintf(path, "htdocs%s", url);
- if (path[strlen(path) - 1] == '/')
-  strcat(path, "index.html");
- if (stat(path, &st) == -1) {
+ if (path[strlen(path) - 1] == '/') //path数组以'/'结尾
+  strcat(path, "index.html");       //将"index.html"连接在path数组后面
+ if (stat(path, &st) == -1) {  
+/*
+  定义函数:    int stat(const char *file_name, struct stat *buf);
+  函数说明:    通过文件名filename获取文件信息，并保存在buf所指的结构体stat中
+  返回值:      执行成功则返回0，失败返回-1，错误代码存于errno
+*/
   while ((numchars > 0) && strcmp("\n", buf))  /* read & discard headers */
    numchars = get_line(client, buf, sizeof(buf));
   not_found(client);
