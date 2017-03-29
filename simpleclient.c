@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
  */
  read(sockfd, &ch, 1);
  /*
- 把参数fd所指向的文件传送2个字节到ch指针所指向的内存中。
+ 把参数sockfd所指向的文件传送1个字节到ch指针所指向的内存中。
  */
  printf("char from server = %c\n", ch);
  close(sockfd);//关闭sockfd套接字描述字
